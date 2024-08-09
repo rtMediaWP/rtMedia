@@ -3374,7 +3374,7 @@ function rtmedia_convert_date( $_date ) {
 		return sprintf( $ago_text, $value );
 	} else {
 		// translators: %s: date format, see http://php.net/date.
-		return date_i18n( 'd F Y ', strtotime( $_date ), true );
+		return date_i18n( get_option( 'date_format' ), strtotime( $_date ), true );
 	}
 }
 

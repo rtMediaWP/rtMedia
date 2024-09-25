@@ -1,0 +1,96 @@
+name: rtmedia
+recipe: wordpress
+config:
+  via: nginx
+  php: "8.0"
+  webroot: wordpress
+  database: mariadb
+  # Keep it empty, to enable xdebug use `lando xdebug <xdebug mode>` instead
+  xdebug: ""
+  config:
+    php: .lando/php.ini
+    database: .lando/mysql.cnf
+    vhosts: .lando/nginx.conf
+services:
+  database:
+    volumes:
+      mariadb: { }
+    type: compose
+    creds:
+      user: wordpress
+      password: wordpress
+      database: wordpress
+    services:
+      image: mariadb:10.6.5
+      command: docker-entrypoint.sh mariadbd
+      volumes:
+        - mariadb:/var/lib/mysql
+      environment:
+        MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+        MARIADB_DATABASE: wordpress
+        MYSQL_DATABASE: wordpress
+        MARIADB_USER: wordpress
+        MARIADB_PASSWORD: wordpress
+  rediscache:
+    type: redis
+  mailhog:
+    type: mailhog
+    portforward: false
+    hogfrom:
+      - appserver
+  appserver:
+    overrides:
+      environment:
+        # Support debugging Drush with XDEBUG.
+        PHP_IDE_CONFIG: "serverName=appserver"
+        PROFILER_OUTPUT_DIR: "profiler-output" # If changing this value, change in .gitignore also
+      volumes:
+        - '.lando/wp-cli.yml:/wp-cli.yml'
+        - './mu-plugins:/app/wordpress/wp-content/mu-plugins'
+        - './plugins:/app/wordpress/wp-content/plugins'
+        - './rt-config:/app/wordpress/wp-content/rt-config'
+        - './themes:/app/wordpress/wp-content/themes'
+        - './uploads:/app/wordpress/wp-content/uploads'
+    build_as_root:
+      - curl -sL https://deb.nodesource.com/setup_14.x | bash -
+      - apt-get install -y nodejs
+    build:
+      - wp core download --force --skip-content
+    run:
+      - sleep 5 # For some reason, we have to wait at least a second till database is up.
+      - | # Create WordPress config file and add necessary constants and custom config
+        wp config create --dbhost=database --dbname=wordpress --dbuser=wordpress --dbpass=wordpress --dbprefix=wp_ --force --extra-php <<PHP
+        if ( file_exists( __DIR__ . '/wp-content/rt-config/rt-config.php' ) ) {
+          require_once( __DIR__ . '/wp-content/rt-config/rt-config.php' );
+        }
+        PHP
+      - wp config set WP_DISABLE_FATAL_ERROR_HANDLER true --raw
+      - wp config set WP_DEBUG true --raw
+      - wp config set WP_DEBUG_LOG true --raw
+      - wp config set WP_DEBUG_DISPLAY false --raw
+      - wp config set AUTOMATIC_UPDATER_DISABLED true --raw
+      - wp config set DISALLOW_FILE_EDIT true --raw
+      - wp config set WP_ENVIRONMENT_TYPE 'local'
+      - wp config set WP_REDIS_HOST rediscache
+      - | # Let's check if WordPress is not installed, then install it
+        if ! wp core is-installed; then
+          wp core install --url=https://$LANDO_APP_NAME.$LANDO_DOMAIN \
+            --title=$LANDO_APP_NAME \
+            --admin_user=rtcamp \
+            --admin_password=goodwork \
+            --admin_email=lando@rtcamp.com \
+            --skip-email
+          wp theme install --activate twentytwentyone
+          wp plugin install --activate redis-cache
+          wp redis enable
+        fi
+tooling:
+  xdebug:
+    description: Loads Xdebug in the selected mode.
+    cmd:
+      - appserver: /app/.lando/xdebug.sh
+    user: root
+  node:
+    service: appserver
+  npm:
+    service: appserver

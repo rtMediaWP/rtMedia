@@ -40,6 +40,4 @@ sftp-config.json
 *.sublime-workspace
 .phpintel
 selenium-debug.log
-.lando.wp-cli.yml
-.lando.yml
 /wordpress

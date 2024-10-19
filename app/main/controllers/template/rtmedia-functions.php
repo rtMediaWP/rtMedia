@@ -568,7 +568,7 @@ function rtmedia_media( $size_flag = true, $echo = true, $media_size = 'rt_media
 	if ( isset( $rtmedia_media->media_type ) ) {
 
 		if ( 'photo' === $rtmedia_media->media_type ) {
-			$src = wp_get_attachment_image_src( $rtmedia_media->media_id, $media_size );
+			$src = wp_get_attachment_image_src( $rtmedia_media->media_id );
 
 			if ( ! empty( $src[0] ) ) {
 				$src = rtmedia_append_timestamp_in_url( $src[0] );

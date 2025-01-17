@@ -10,7 +10,6 @@ on:
       - wp-e2e-playwright
       - develop
       - master
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -44,7 +43,7 @@ jobs:
 
       - name: Archive HTML Report on failure
         if: failure()
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: report
           path: ./tests/wp-e2e-playwright/playwright-report
